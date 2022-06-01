@@ -1,0 +1,601 @@
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\chapter{稠密矩阵和数组处理}
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\section{矩阵类}
+原文地址：\href{http://eigen.tuxfamily.org/dox/group__TutorialMatrixClass.html}{MatrixClass}
+
+%===================================================%
+\subsection{Matrix的前三个模板参数}
+Matrix类有6个模板参数，但是就现在而言掌握前三个参数已经足够了。剩下的三个参数，带有默认值，在后面的内容中会进行讨论。
+
+Matrix前三个强制的模板参数是：
+
+\verb|Matrix<typename Scalar, int RowsAtCompileTime, int ColsAtCompileTime>|
+
+\begin{itemize}
+\item Scalar, 是标量类型，如每个元素的类型。也就是说，如果你想要一个存储float的矩阵，那么scalar就是float。
+\item RowsAtCompileTime和ColsAtCompileTime是在编译期间需要确定的矩阵的行数和列数。
+\end{itemize}
+
+我们提供了很多方便的typedef来覆盖大多数场景。比如，\verb|Matrix4f|是一个4x4的float矩阵，在eigen中是如下定义的：
+
+\verb|typedef Matrix<float,4,4> Matrix4f;|
+
+接下来会讨论一些通用的typedefs。
+
+%===================================================%
+\subsection{Vectors}
+
+正如上面所说，Vector就是矩阵的一个特例。在Eigen，以Vector开头的都是列向量。
+
+举个例子，Vector3f就是3个float元素的列向量，在Eigen中定义如下：
+
+\verb|typedef Matrix<float,3,1> Vector3f;|
+
+对于行向量也有类似的定义，如下：
+
+\verb|typedef Matrix<int, 1, 2> RowVector2i;|
+
+%===================================================%
+\subsection{Dynamic特殊值}
+
+当然，Eigen并没有限制编译的时候必须知道矩阵的大小。RowsAtCompileTime和ColsAtCompileTime模板参数可以设定为特殊的值，\verb|Dynamic|,用来表示编译期间大小是未知的。在Eigen中，这样的大小被叫做动态大小，在编译期间确定的大小被叫做固定大小。以MatrixXd为例，如下：
+
+\verb|typedef Matrix<double, Dynamic, Dynamic> MatrixXd;|
+
+类似的定义VectorXi，如下：
+
+\verb|typedef Matrix<int, Dynamic, 1> VectorXi;|
+
+当然也可以定义固定行数，不固定列数，如：\verb|Matrix<float, 3, Dynamic>|。
+
+%===================================================%
+\subsection{构造函数}
+通常提供默认构造函数，默认构造函数不会进行内存分配，也不会进行矩阵元素的初始化。可以如下：
+
+\begin{lstlisting}[style=Cpp]
+Matrix3f a;
+MatrixXf b;
+\end{lstlisting}
+
+这里：
+\begin{itemize}
+\item a，是一个3x3的矩阵，一个没有初始化的float[9]数组；
+\item b不固定大小的矩阵，当前大小为0x0，元素数组还没有被分配空间。
+\end{itemize}
+
+还有带大小的构造函数。对于矩阵而言，第一个参数通常是行数。对于向量而言，只需要传入向量的大小。构造函数内部会根据大小分配对应的内存空间，但是并不会对元素进行初始化。
+
+\begin{lstlisting}[style=Cpp]
+MatrixXf a(10,15);
+VectorXf b(30);
+\end{lstlisting}
+
+这里：
+\begin{itemize}
+\item a是一个10x15大小可以动态设定的矩阵，内存空间已经分配，但是还没有进行初始化。
+\item b是一个大小为30的可以动态设定大小的向量，内存空间已经分配，但是还没有进行初始化。
+\end{itemize}
+
+为了使得固定大小和动态设定大小的矩阵的接口保持一致，对于固定大小的矩阵，构造的时候传入大小也是合法的。如：
+
+\verb|Matrix3f a(3,3);|
+
+最后，我们也提供了一些方便固定大小的vector初始化的构造，如下：
+
+\begin{lstlisting}[style=Cpp]
+Vector2d a(5.0, 6.0);
+Vector3d b(5.0, 6.0, 7.0);
+Vector4d c(5.0, 6.0, 7.0, 8.0);
+\end{lstlisting}
+
+%===================================================%
+\subsection{元素访问}
+Eigen中主要元素的访问和修改，是通过对括号进行了重载实现的。对于矩阵而言，第一个参数总是行的index。对于向量而言，只需要传递一个参数即可。index是从0开始计数的。例子如下：
+
+\begin{lstlisting}[style=Cpp]
+#include <iostream>
+#include <Eigen/Dense>
+using namespace Eigen;
+int main()
+{
+	MatrixXd m(2,2);
+	m(0,0) = 3;
+	m(1,0) = 2.5;
+	m(0,1) = -1;
+	m(1,1) = m(1,0) + m(0,1);
+	std::cout << "Here is the matrix m:\n" << m << std::endl;
+	VectorXd v(2);
+	v(0) = 4;
+	v(1) = v(0) - 1;
+	std::cout << "Here is the vector v:\n" << v << std::endl;
+}
+\end{lstlisting}
+注意单个参数的方式（\verb|m(index)|）并不是一定针对向量，也可以用于矩阵，用于通过index来访问内部存储的一维数组中对应的元素。但是这个得到的结果依赖于矩阵的存储方式。Eigen默认采用的是以列为主的存储方式，不过也可以通过参数的设置改变成以行为主的存储方式。
+
+\verb|[]|操作符也用于向量元素的访问，不过需要注意的是，c++不允许操作符\verb|[]|传入多于一个的参数。因此该操作符仅能用于向量的访问。
+
+%===================================================%
+\subsection{逗号初始化}
+矩阵和向量能够很方便的通过逗号初始化的方式进行初始化，如下：
+\begin{lstlisting}[style=Cpp]
+Matrix3f m;
+m << 1, 2, 3,
+4, 5, 6,
+7, 8, 9;
+std::cout << m;
+
+// output is:
+1 2 3
+4 5 6
+7 8 9
+\end{lstlisting}
+
+\subsection{改变大小}
+
+矩阵当前的大小可以通过\verb|rows(),cols(),size()|获取。这些方法返回矩阵的行数，列数，以及元素的个数。对于大小动态设定的矩阵的resize，可以通过函数\verb|resize()|实现。如下：
+\begin{lstlisting}[style=Cpp]
+#include <iostream>
+#include <Eigen/Dense>
+using namespace Eigen;
+int main()
+{
+	MatrixXd m(2,5);
+	m.resize(4,3);
+	std::cout << "The matrix m is of size "
+	<< m.rows() << "x" << m.cols() << std::endl;
+	std::cout << "It has " << m.size() << " coefficients" << std::endl;
+	VectorXd v(2);
+	v.resize(5);
+	std::cout << "The vector v is of size " << v.size() << std::endl;
+	std::cout << "As a matrix, v is of size "
+	<< v.rows() << "x" << v.cols() << std::endl;
+}
+
+// 结果：
+The matrix m is of size 4x3
+It has 12 coefficients
+The vector v is of size 5
+As a matrix, v is of size 5x1
+\end{lstlisting}
+
+如果矩阵实际的元素个数（size）没有发生变化的话，那么resize操作不会改变元素的数值，否则，该操作是破坏性的：元素的数值很有可能被更改。如果你想要在resize的时候不改变元素的数值，可以选用另一个方法，\verb|conservativeResize()|。
+
+当然这些接口对于固定大小的矩阵也能够调用，但是，你并不能改变矩阵的大小。试图改变，会引起程序的中断，但是如果大小没有发生变化，那么代码是合理的。如：
+\begin{lstlisting}[style=Cpp]
+#include <iostream>
+#include <Eigen/Dense>
+using namespace Eigen;
+int main()
+{
+	Matrix4d m;
+	m.resize(4,4); // no operation
+	std::cout << "The matrix m is of size "
+	<< m.rows() << "x" << m.cols() << std::endl;
+}
+
+// output
+The matrix m is of size 4x4
+\end{lstlisting}
+
+%===================================================%
+\subsection{ 赋值和改变大小}
+赋值操作是将一个矩阵拷贝到另一个矩阵的行为，使用=操作符。Eigen会自动改变左边的矩阵大小，和=右边的大小保持一致。
+\begin{lstlisting}[style=Cpp]
+MatrixXf a(2,2);
+std::cout << "a is of size " << a.rows() << "x" << a.cols() << std::endl;
+MatrixXf b(3,3);
+a = b;
+std::cout << "a is now of size " << a.rows() << "x" << a.cols() << std::endl;
+
+// output
+a is of size 2x2
+a is now of size 3x3
+\end{lstlisting}
+当然，如果左边是固定大小的矩阵，那么改变大小是不被允许的。如果你不希望这种情况自动发生，那么你可以禁用它。（TODO）
+
+%===================================================%
+\subsection{固定大小和动态大小的比较}
+
+什么时候要用固定大小的矩阵，如Matrix4f，以及什么时候更加倾向于动态矩阵，如MatrixXf。简单的答案是：针对非常小的矩阵使用固定大小的，对于大的矩阵使用动态大小的。对于小的矩阵，尤其是小于16（粗略的估计），使用固定大小的矩阵，对于性能更为有利，因为这样能够避免内存的分配以及释放等。在内部，固定大小的矩阵就是一个数组。如\verb|Matrix4f mymatrix;|的行为和\verb|float mymatrix[16];|的行为基本上是一致的。
+
+作为比较，动态大小的矩阵，内存空间是分配再堆上面的，如\verb|MatrixXf mymatrix(rows,columns);|和\verb|float *mymatrix = new float[rows*columns];|比较类似的，不同的是前者存储了rows和columns作为成员变量。
+
+使用固定大小的限制是，在编译阶段你必须要知道矩阵的大小。对于大的矩阵，使用固定大小带来的性能的提升可以被忽略不计。更糟糕的是，试图创建一个非常大的固定大小的矩阵，可能会导致栈溢出，因为Eigen将分配得到的数组作为局部变量，而局部变量存在于栈上。最后，和环境相关的是，在使用动态大小的时候，Eigen会尽可能的使用向量化（使用SIMD指令）。
+
+%===================================================%
+\subsection{可选的模板参数}
+在这一页开头，介绍了Matrix有六个模板参数，但是到目前为止，我们仅仅讨论了3个，剩下的参数如下：
+\begin{lstlisting}[style=Cpp]
+Matrix<typename Scalar,
+int RowsAtCompileTime,
+int ColsAtCompileTime,
+int Options=0,
+int MaxRowsAtCompileTime = RowsAtCompileTime,
+int MaxColsAtCompileTime = ColsAtCompileTime>
+\end{lstlisting}
+\begin{itemize}
+\item Options:一个位字段，这里讨论一个呗，RowMajor。用来定义矩阵内部存储的是行为主的。默认情况下是列为主的。可以这么使用\verb|Matrix<float,3,3,RowMajor>| 。
+\item MaxRowsAtCompileTime和MaxColsAtCompileTime，使用这两个参数的最大个一个原因是，你需要避免内存的动态分配，举个例子，下面的矩阵使用了12个float的数组，但没有动态分配内存空间。\verb|Matrix<float,Dynamic,Dynamic,0,3,4>|。
+\end{itemize}
+
+%===================================================%
+\subsection{方便的typedefs}
+Eigen中定义了如下的typedefs：
+\begin{itemize}
+\item MatrixNt的格式用于定义\verb|Matrix<type,N,N>|。如：MatrixXi为\verb|Matrix<int,Dynamic,Dynamic>|。
+\item VectorNt的格式用于定义\verb|Matrix<type,N,1>|。如：Vector2f为\verb|Matrix<float,2,1>|。
+\item RowVectorNt的格式用于定义\verb|Matrix<type,1,N>|。如：RowVector3d为\verb|Matrix<double,1,3>|。
+\end{itemize}
+
+上面的格式中，
+
+\begin{itemize}
+\item N可以是2,3,4，X中的任意一个。
+\item t可以是i(int), f(float), d(double), cf(complex<float>), cd(complex<double>)中的任意一个。这里给出了5个标量类型，但不是说明，一定得这几个，可以进行扩展。
+\end{itemize} 
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\section{矩阵和向量运算}
+这一节的主要内容为：
+\begin{itemize}
+\item 稠密矩阵和数组计算
+\item 主要提供综述和在矩阵、向量和标量之间怎样使用的一些细节
+\end{itemize}
+
+%===================================================%
+\subsection{介绍}
+\verb|Eigen|通过重载常用的C++运算符，例如+,-,*或者通过特殊方法，例如点乘，叉乘等等。对于矩阵类（矩阵和向量）运算符重载仅仅支持线性代数运算。例如，matrix1 * matrix2为矩阵与矩阵的乘积，vector + scalar 向量与标量相加是不允许。如果想要使用各种数组运算，而不是线性代数运算。
+
+\subsection{加法与减法}
+当然，左手边与右手边的行和列必须相同，也必须有同样的标量类型，Eigen不能自动类型转换。这里有运算符是：
+\begin{itemize}
+\item 二元运算符 + ，a + b
+\item 二元运算符 - ，a - b
+\item 一元运算符 - ，-a
+\item 复合运算符 += ， a += b
+\item 复合运算符 -= ， a -= b
+\end{itemize}
+\begin{lstlisting}[style=Cpp]
+#include <iostream>
+#include <Eigen/Dense>
+
+int main()
+{
+	Eigen::Matrix2d a;
+	a << 1, 2,
+	3, 4;
+	Eigen::MatrixXd b(2,2);
+	b << 2, 3,
+	1, 4;
+	std::cout << "a + b =\n" << a + b << std::endl;
+	std::cout << "a - b =\n" << a - b << std::endl;
+	std::cout << "Doing a += b;" << std::endl;
+	a += b;
+	std::cout << "Now a =\n" << a << std::endl;
+	Eigen::Vector3d v(1,2,3);
+	Eigen::Vector3d w(1,0,0);
+	std::cout << "-v + w - v =\n" << -v + w - v << std::endl;
+}
+\end{lstlisting}
+
+输出的结果为：
+\begin{lstlisting}
+a + b =
+3 5
+4 8
+a - b =
+-1 -1
+2  0
+Doing a += b;
+Now a =
+3 5
+4 8
+-v + w - v =
+-1
+-4
+-6
+\end{lstlisting}
+
+\subsection{标量乘法与除法}
+\begin{itemize}
+\item 二元运算符 *， matrix * scalar
+\item 二元运算符 *， scalar * matrix
+\item 二元运算符 /，matrix / scalar
+\item 复合运算符 *=，matrix *= scalar
+\item 复合运算符 /=， matrix /= scalar
+\end{itemize}
+
+\begin{lstlisting}[style=Cpp]
+#include <iostream>
+#include <Eigen/Dense>
+
+int main()
+{
+	Eigen::Matrix2d a;
+	a << 1, 2,
+	3, 4;
+	Eigen::Vector3d v(1,2,3);
+	std::cout << "a * 2.5 =\n" << a * 2.5 << std::endl;
+	std::cout << "0.1 * v =\n" << 0.1 * v << std::endl;
+	std::cout << "Doing v *= 2;" << std::endl;
+	v *= 2;
+	std::cout << "Now v =\n" << v << std::endl;
+}
+\end{lstlisting}
+
+输出的结果为：
+\begin{lstlisting}
+a * 2.5 =
+2.5   5
+7.5  10
+0.1 * v =
+0.1
+0.2
+0.3
+Doing v *= 2;
+Now v =
+2
+4
+6
+\end{lstlisting}
+
+\subsection{关于表达式模板的说明}
+这是在本章中描述的一个高级主题，但是这里只是提到它的使用，在Eigen中，运算重载符，例如Operate+不会使用任何自身的计算，仅仅返回一个表达式对象来描述使用的计算。实际计算是在之后，当整个表达式被求值时，通常在Operator=中。虽然这听起来很沉重，但是任何现代编译器都能够优化这种抽象运算符，从而得到完全优化的代码的结果。例如：
+
+\begin{lstlisting}[style=Cpp]
+VectorXf a(50), b(50), c(50), d(50);
+...
+a = 3*b + 4*c + 5*d;
+\end{lstlisting}
+
+Eigen 编译器仅仅只做一次循环，以至于数组只遍历一次，简化（忽略SIMD优化器），循环如下：
+\begin{lstlisting}[style=Cpp]
+for(int i = 0; i < 50; ++i)
+a[i] = 3*b[i] + 4*c[i] + 5*d[i];
+\end{lstlisting}
+因此，不应该担心使用带有特征的相对较大的算术表达式:这只会为Eigen提供更多的优化。
+
+\subsection{转置和共轭}
+
+对矩阵的转置、共轭和共轭转置分别由成员函数transpose(),conjugate(),adjoint()实现。
+\begin{lstlisting}[style=Cpp]
+MatrixXcf a = MatrixXcf::Random(2,2);
+cout << "Here is the matrix a\n" << a << endl;
+
+cout << "Here is the matrix a^T\n" << a.transpose() << endl;
+
+cout << "Here is the conjugate of a\n" << a.conjugate() << endl;
+
+cout << "Here is the matrix a^*\n" << a.adjoint() << endl;
+\end{lstlisting}
+输出的结果为：
+\begin{lstlisting}
+Here is the matrix a
+(-0.211,0.68) (-0.605,0.823)
+(0.597,0.566)  (0.536,-0.33)
+Here is the matrix a^T
+(-0.211,0.68)  (0.597,0.566)
+(-0.605,0.823)  (0.536,-0.33)
+Here is the conjugate of a
+(-0.211,-0.68) (-0.605,-0.823)
+(0.597,-0.566)    (0.536,0.33)
+Here is the matrix a^*
+(-0.211,-0.68)  (0.597,-0.566)
+(-0.605,-0.823)    (0.536,0.33)
+\end{lstlisting}
+对于实数矩阵，共轭不会发生操作，所以adjoint()=transpose()。
+
+对于基本的重载运算符、transpose()和adjoint()简单的返回一个代理对象，而不是做实际的转置，如果你做b = a.transpose()，然后转置在结果被写进b的同时被求值，然而这里是一个复杂的问题，如果你做 a = a.transpose()，那么在转置的计算完成之前，Eigen开始把结果写进a中，因此，并不是期待那样，公式a = a.transpose()用它替换a
+
+\begin{lstlisting}[style=Cpp]
+Matrix2i a; a << 1, 2, 3, 4;
+cout << "Here is the matrix a:\n" << a << endl;
+
+a = a.transpose(); // !!! do NOT do this !!!
+cout << "and the result of the aliasing effect:\n" << a << endl;
+\end{lstlisting}
+输出的结果为：
+\begin{lstlisting}
+Here is the matrix a:
+1 2
+3 4
+and the result of the aliasing effect:
+1 2
+2 4  (0.536,0.33)
+\end{lstlisting}
+
+这里所谓的别名问题，在调试模型，在没有断言时，将自动检测此类常见的缺陷。
+对于In-place转置，对于例子a = a.transpose()，简单地使用transposeInPlace()函数。
+\begin{lstlisting}[style=Cpp]
+MatrixXf a(2,3); a << 1, 2, 3, 4, 5, 6;
+cout << "Here is the initial matrix a:\n" << a << endl;
+
+a.transposeInPlace();
+cout << "and after being transposed:\n" << a << endl;
+\end{lstlisting}
+输出的结果为：
+\begin{lstlisting}
+Here is the initial matrix a:
+1 2 3
+4 5 6
+and after being transposed:
+1 4
+2 5
+3 6
+\end{lstlisting}
+对于复杂的矩阵这里还有adjointInPlace() 函数。
+
+\subsection{ 矩阵相乘和矩阵与向量相乘}
+
+矩阵相乘使用operator* ,由于向量也是一种特殊的矩阵，这里是一种隐式处理，所以矩阵与向量乘积是一种特殊矩阵相乘，也是向量与向量的外积，因此，所有的这些运算操作同两个重载符：
+
+\begin{itemize}
+\item 二元重载符*，a * b
+\item 三元重载符 *= ，a *= b(),在右边相乘：a*=b等于a = a*b。
+\end{itemize}
+\begin{lstlisting}[style=Cpp]
+#include <iostream>
+#include <Eigen/Dense>
+
+int main()
+{
+	Eigen::Matrix2d mat;
+	mat << 1, 2,
+	3, 4;
+	Eigen::Vector2d u(-1,1), v(2,0);
+	std::cout << "Here is mat*mat:\n" << mat*mat << std::endl;
+	std::cout << "Here is mat*u:\n" << mat*u << std::endl;
+	std::cout << "Here is u^T*mat:\n" << u.transpose()*mat << std::endl;
+	std::cout << "Here is u^T*v:\n" << u.transpose()*v << std::endl;
+	std::cout << "Here is u*v^T:\n" << u*v.transpose() << std::endl;
+	std::cout << "Let's multiply mat by itself" << std::endl;
+	mat = mat*mat;
+	std::cout << "Now mat is mat:\n" << mat << std::endl;
+}
+\end{lstlisting}
+输出的结果为：
+\begin{lstlisting}
+Here is mat*mat:
+7 10
+15 22
+Here is mat*u:
+1
+1
+Here is u^T*mat:
+2 2
+Here is u^T*v:
+-2
+Here is u*v^T:
+-2 -0
+2  0
+Let's multiply mat by itself
+Now mat is mat:
+7 10
+15 22
+\end{lstlisting}
+
+提示：如果你阅读上面关于表达式模板的段落和可能导致别名问题m=m*m的担忧，Eigen把矩阵相乘作为特殊情况，引用一个临时变量，因此将它编译为m=m*m
+
+\verb|tmp = m*m;|
+
+\verb|m = tmp;|
+
+如果知道矩阵相乘能够安全的计算成目标矩阵而没有别名问题，可以使用noalias()函数来避免临时变量。
+
+\verb|c.noalias() += a * b;|
+
+对于更多的细节，见\href{https://eigen.tuxfamily.org/dox/group__TopicAliasing.html}{Aliasing}。提示：对于BLAS使用者担心的性能问题，表达式\verb|c.noalias() -= 2 * a.adjoint() * b|全部优化和触发一个gemm-like函数调用。
+
+\subsection{点乘和叉乘}
+
+对于点乘与叉乘，使用dot()和cross()方法，当然点乘也可以用u.adjoint()*v表示为1x1矩阵。
+\begin{lstlisting}[style=Cpp]
+#include <iostream>
+#include <Eigen/Dense>
+
+int main()
+{
+	Eigen::Vector3d v(1,2,3);
+	Eigen::Vector3d w(0,1,2);
+	
+	std::cout << "Dot product: " << v.dot(w) << std::endl;
+	double dp = v.adjoint()*w; // automatic conversion of the inner product to a scalar
+	std::cout << "Dot product via a matrix product: " << dp << std::endl;
+	std::cout << "Cross product:\n" << v.cross(w) << std::endl;
+}
+\end{lstlisting}
+输出的结果为：
+\begin{lstlisting}
+Dot product: 8
+Dot product via a matrix product: 8
+Cross product:
+1
+-2
+1
+\end{lstlisting}
+记住叉乘向量的维度为3，向量的点乘任意维度，当使用复数时，Eigen点乘在第一个变量中是共轭线性的，在第二个变量中也是线性的。
+
+\subsection{基本算术规约操作}
+
+Eigen提供了一些对于矩阵或向量的规约操作，如sum(),prod(),maxCoeff()和minCoeff()
+
+\begin{lstlisting}[style=Cpp]
+#include <iostream>
+#include <Eigen/Dense>
+
+using namespace std;
+int main()
+{
+	Eigen::Matrix2d mat;
+	mat << 1, 2,
+	3, 4;
+	cout << "Here is mat.sum():       " << mat.sum()       << endl;
+	cout << "Here is mat.prod():      " << mat.prod()      << endl;
+	cout << "Here is mat.mean():      " << mat.mean()      << endl;
+	cout << "Here is mat.minCoeff():  " << mat.minCoeff()  << endl;
+	cout << "Here is mat.maxCoeff():  " << mat.maxCoeff()  << endl;
+	cout << "Here is mat.trace():     " << mat.trace()     << endl;
+}
+\end{lstlisting}
+输出的结果为：
+\begin{lstlisting}
+Here is mat.sum():       10
+Here is mat.prod():      24
+Here is mat.mean():      2.5
+Here is mat.minCoeff():  1
+Here is mat.maxCoeff():  4
+Here is mat.trace():     5
+\end{lstlisting}
+
+矩阵的迹，由函数trace()返回，迹是矩阵对角系数之和，也可以使用a.diagonal().sum()高效计算。
+这里还存在minCoeff 和maxCoeff 函数返回各系数的坐标。
+
+\begin{lstlisting}[style=Cpp]
+Matrix3f m = Matrix3f::Random();
+std::ptrdiff_t i, j;
+float minOfM = m.minCoeff(&i,&j);
+cout << "Here is the matrix m:\n" << m << endl;
+cout << "Its minimum coefficient (" << minOfM 
+<< ") is at position (" << i << "," << j << ")\n\n";
+
+RowVector4i v = RowVector4i::Random();
+int maxOfV = v.maxCoeff(&i);
+cout << "Here is the vector v: " << v << endl;
+cout << "Its maximum coefficient (" << maxOfV 
+<< ") is at position " << i << endl;
+\end{lstlisting}
+输出的结果为：
+\begin{lstlisting}
+Here is the matrix m:
+0.68  0.597  -0.33
+-0.211  0.823  0.536
+0.566 -0.605 -0.444
+Its minimum coefficient (-0.605) is at position (2,1)
+
+Here is the vector v:  1  0  3 -3
+Its maximum coefficient (3) is at position 2
+\end{lstlisting}
+
+\subsection{操作的有效性}
+
+Eigen检查执行的操作的有效性。如果可能，它会在编译时检查它们，从而产生编译错误。这些错误消息可能又长有难看，但是Eigen用大写字母 \textbf{UPPERCASE\_LETTERS\_SO\_IT\_STANDS\_OUT}写重要的消息。例如:
+\begin{lstlisting}[style=Cpp]
+Matrix3f m;
+Vector4f v;
+v = m*v; // Compile-time error: YOU_MIXED_MATRICES_OF_DIFFERENT_SIZES
+\end{lstlisting}
+
+当然，在许多情况下，例如在检查动态大小时，无法在编译时执行检查。然后使用运行时断言。这意味着如果在“调试模式”下运行，程序在执行非法操作时将使用错误消息中止，如果关闭断言，程序可能会崩溃。
+
+\begin{lstlisting}[style=Cpp]
+MatrixXf m(3,3);
+VectorXf v(4);
+v = m * v; // Run-time assertion failure here: "invalid matrix product"
+\end{lstlisting}
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\section{数组类和coefficient-wise操作}
+
